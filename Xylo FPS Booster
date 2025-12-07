@@ -27,7 +27,7 @@ echo         ==========  Xylo FPS Booster  (Free)  ==========
 echo.
 echo   1  Reduce background CPU usage  (disable useless services)
 echo   2  Enable Hardware-Accelerated GPU Scheduling  (Win10 20H1+)
-echo   3  Clean temp/junk files  (Recycle-Bin + caches)
+echo   3  Clean temp/junk files  (MAY GLITCH—see below)
 echo   4  Set game process priority tweak  (REG + Scheduled task)
 echo   5  Apply power-plan tweaks  (High performance + responsiveness)
 echo.
@@ -67,6 +67,11 @@ echo  ✔ GPU scheduling tweak done – reboot required for full effect.>>"%log%
 goto FINISH_ONE
 
 :TWEAK_3
+echo.
+echo  NOTE: This step sometimes hangs on older builds of Windows.
+echo        If the window seems stuck, just close it and skip this tweak.
+echo.
+pause
 echo ► Cleaning temporary files . . .
 del /s /f /q "%temp%\*" >nul 2>nul
 for /d %%x in ("%temp%\*") do @rd /s /q "%%x" 2>nul
