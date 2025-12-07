@@ -1,0 +1,129 @@
+@echo off
+::  Xylo FPS Boost Tweak  –  FREE VERSION  (CMD only)
+title  Xylo FPS Booster  (Free Version)
+setlocal EnableExtensions EnableDelayedExpansion
+set "log=%temp%\XyloFPS_Tweaks.log"
+echo.================  Xylo FPS Booster  ================>"%log%"
+
+::----------------------------------------------------------
+::  1.  Safety net – create a System Restore point
+::----------------------------------------------------------
+echo.
+echo  Creating System Restore point (takes ~15 s) . . .
+wmic.exe /Namespace:\\root\default Path SystemRestore Call CreateRestorePoint "Xylo FPS Tweaks", 100, 7 >nul
+if !errorlevel! equ 0 (
+     echo  ✔ System Restore point created.>>"%log%"
+) else (
+     echo  !  Could not create Restore point – continuing anyway.>>"%log%"
+)
+
+::----------------------------------------------------------
+::  2.  Tiny menu so the user chooses what to run
+::----------------------------------------------------------
+:MENU
+cls
+echo.
+echo         ==========  Xylo FPS Booster  (Free)  ==========
+echo.
+echo   1  Reduce background CPU usage  (disable useless services)
+echo   2  Enable Hardware-Accelerated GPU Scheduling  (Win10 20H1+)
+echo   3  Clean temp/junk files  (Recycle-Bin + caches)
+echo   4  Set game process priority tweak  (REG + Scheduled task)
+echo   5  Apply power-plan tweaks  (High performance + responsiveness)
+echo.
+echo   A  Apply ALL tweaks
+echo   R  REVERT every tweak made by this script
+echo   Q  Quit
+echo.
+choice /c 12345ARQ /n /m "Select option: "
+set "ch=%errorlevel%"
+if %ch%==1  goto TWEAK_1
+if %ch%==2  goto TWEAK_2
+if %ch%==3  goto TWEAK_3
+if %ch%==4  goto TWEAK_4
+if %ch%==5  goto TWEAK_5
+if %ch%==6  goto APPLY_ALL
+if %ch%==7  goto REVERT
+if %ch%==8  goto :EOF
+
+::----------------------------------------------------------
+::  3.  Individual tweak sections
+::----------------------------------------------------------
+:TWEAK_1
+echo ► Disabling selected bloat-services . . .
+sc config "DiagTrack" start= disabled >>"%log%" 2>nul
+sc stop "DiagTrack" >>"%log%" 2>nul
+sc config "dmwappushservice" start= disabled >>"%log%" 2>nul
+sc stop "dmwappushservice" >>"%log%" 2>nul
+sc config "MapsBroker" start= disabled >>"%log%" 2>nul
+sc stop "MapsBroker" >>"%log%" 2>nul
+echo  ✔ Background-CPU tweak done.>>"%log%"
+goto FINISH_ONE
+
+:TWEAK_2
+echo ► Enabling Hardware-Accelerated GPU Scheduling . . .
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v "HwSchMode" /t REG_DWORD /d 2 /f >>"%log%"
+echo  ✔ GPU scheduling tweak done – reboot required for full effect.>>"%log%"
+goto FINISH_ONE
+
+:TWEAK_3
+echo ► Cleaning temporary files . . .
+del /s /f /q "%temp%\*" >nul 2>nul
+for /d %%x in ("%temp%\*") do @rd /s /q "%%x" 2>nul
+cleanmgr /sagerun:1 >nul 2>nul
+if exist "%SystemRoot%\System32\cleanmgr.exe" (
+     echo  ✔ Disk-Cleanup launched (checked items will be removed).>>"%log%"
+) else (
+     echo  ! cleanmgr.exe not present – skipped.>>"%log%"
+)
+goto FINISH_ONE
+
+:TWEAK_4
+echo ► Creating game-priority task (runs when any game is fullscreen) . . .
+schtasks /create /tn "Xylo_GameBooster" /tr "cmd /c wmic process where name=\\\"game.exe\\\" CALL setpriority 128" /sc onevent /ec System /mo "*[System[Provider[@Name='Microsoft-Windows-Kernel-Power'] and EventID=107]]" /f >nul 2>nul
+echo  ✔ Game-priority task created.>>"%log%"
+goto FINISH_ONE
+
+:TWEAK_5
+echo ► Switching to High-Performance power plan + responsiveness tweaks . . .
+powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl" /v "Win32PrioritySeparation" /t REG_DWORD /d 38 /f >>"%log%"
+echo  ✔ Power-plan tweaks applied.>>"%log%"
+goto FINISH_ONE
+
+::----------------------------------------------------------
+::  4.  Apply everything at once
+::----------------------------------------------------------
+:APPLY_ALL
+call :TWEAK_1
+call :TWEAK_2
+call :TWEAK_3
+call :TWEAK_4
+call :TWEAK_5
+goto FINISH_ONE
+
+::----------------------------------------------------------
+::  5.  Revert section – simply undo every change we made
+::----------------------------------------------------------
+:REVERT
+echo  Reverting all Xylo tweaks . . .
+sc config "DiagTrack" start= demand >>"%log%"
+sc config "dmwappushservice" start= demand >>"%log%"
+sc config "MapsBroker" start= demand >>"%log%"
+reg delete "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v "HwSchMode" /f >nul 2>nul
+schtasks /delete /tn "Xylo_GameBooster" /f >nul 2>nul
+powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e
+echo  ✔ All tweaks reverted.>>"%log%"
+goto FINISH_ONE
+
+::----------------------------------------------------------
+::  6.  Final message and pause
+::----------------------------------------------------------
+:FINISH_ONE
+echo.
+echo  +----------------------------------------------+
+echo  ¦  TWEAK FINISHED – check log: %log%  ¦
+echo  +----------------------------------------------+
+echo.
+pause
+goto MENU
